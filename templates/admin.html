@@ -1,1 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-4 font-sans antialiased text-gray-900">
+    <h1 class="text-2xl font-bold mb-4 text-center">🛡 Admin Dashboard</h1>
+    
+    <!-- Stats -->
+    <div class="grid grid-cols-2 gap-4 mb-6">
+        <div class="bg-white p-4 rounded-xl shadow text-center"><div class="text-3xl font-bold text-blue-600" id="s-users">-</div><div class="text-xs text-gray-500 uppercase font-bold mt-1">Total Users</div></div>
+        <div class="bg-white p-4 rounded-xl shadow text-center"><div class="text-xl font-bold text-green-600 mt-2" id="s-storage">-</div><div class="text-xs text-gray-500 uppercase font-bold mt-1">Global Storage Used</div></div>
+    </div>
 
+    <!-- Grant GB -->
+    <div class="bg-white p-4 rounded-xl shadow mb-6 border-l-4 border-yellow-500">
+        <h2 class="font-bold text-sm mb-3 uppercase text-gray-600">Grant Premium Storage</h2>
+        <input type="number" id="g-id" placeholder="User Telegram ID" class="w-full bg-gray-50 border p-2 rounded mb-2 text-sm outline-none">
+        <select id="g-gb" class="w-full bg-gray-50 border p-2 rounded mb-3 text-sm outline-none">
+            <option value="5">5 GB (Basic)</option><option value="10">10 GB (Pro)</option><option value="15">15 GB</option><option value="20">20 GB</option>
+            <option value="50">50 GB</option><option value="100">100 GB</option><option value="500">500 GB</option>
+        </select>
+        <button id="btn-grant" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 rounded shadow transition-colors">Grant & Notify User</button>
+    </div>
+
+    <!-- User List -->
+    <h2 class="font-bold text-sm mb-2 uppercase text-gray-600 px-1">User Database</h2>
+    <div class="bg-white rounded-xl shadow overflow-hidden">
+        <div class="divide-y divide-gray-100" id="user-list"></div>
+    </div>
+
+    <script src="/static/admin.js"></script>
+</body>
+</html>

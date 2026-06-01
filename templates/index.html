@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Yori Federation Vault</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="antialiased bg-[var(--tg-theme-secondary-bg-color)]">
+    <div id="loading-screen" class="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[var(--tg-theme-bg-color)]">
+        <div class="animate-spin text-4xl text-[var(--tg-theme-button-color)] mb-4"><i class="ph ph-circle-notch"></i></div>
+        <div class="text-[var(--tg-theme-text-color)] font-medium text-lg">Decrypting Vault...</div>
+    </div>
+
+    <div id="lock-screen" class="hidden fixed inset-0 z-[90] flex flex-col items-center justify-center bg-[var(--tg-theme-bg-color)] px-6">
+        <i class="ph ph-lock-key text-6xl text-[var(--tg-theme-button-color)] mb-6"></i>
+        <h2 class="text-2xl font-bold text-[var(--tg-theme-text-color)] mb-8">Enter Passcode</h2>
+        <div class="flex gap-4 mb-8" id="passcode-dots">
+            <div class="w-4 h-4 rounded-full bg-[var(--tg-theme-hint-color)] opacity-30"></div>
+            <div class="w-4 h-4 rounded-full bg-[var(--tg-theme-hint-color)] opacity-30"></div>
+            <div class="w-4 h-4 rounded-full bg-[var(--tg-theme-hint-color)] opacity-30"></div>
+            <div class="w-4 h-4 rounded-full bg-[var(--tg-theme-hint-color)] opacity-30"></div>
+        </div>
+        <div class="grid grid-cols-3 gap-6 text-2xl font-medium text-[var(--tg-theme-text-color)]" id="numpad"></div>
+    </div>
+
+    <div id="app" class="hidden flex flex-col h-screen">
+        <header id="main-header" class="bg-[var(--tg-theme-bg-color)] px-4 pt-3 pb-2 shadow-sm sticky top-0 z-10">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2 overflow-x-auto no-scrollbar whitespace-nowrap text-sm" id="breadcrumbs"></div>
+                <button id="btn-store" class="text-[10px] font-bold bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-2 py-1 rounded shadow">STORE</button>
+            </div>
+            <div class="w-full bg-[var(--tg-theme-secondary-bg-color)] rounded-full h-1.5 mb-1">
+                <div id="storage-bar" class="bg-[var(--tg-theme-button-color)] h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+            <div class="text-[10px] text-[var(--tg-theme-hint-color)] text-right" id="storage-text">0 GB / 50 GB</div>
+            <div class="flex gap-2 mt-2">
+                <div class="relative flex-1">
+                    <i class="ph ph-magnifying-glass absolute left-2 top-1.5 text-[var(--tg-theme-hint-color)]"></i>
+                    <input type="text" id="search-input" placeholder="Search..." class="w-full bg-[var(--tg-theme-secondary-bg-color)] text-[var(--tg-theme-text-color)] text-xs rounded px-8 py-1.5 outline-none">
+                </div>
+                <select id="sort-select" class="bg-[var(--tg-theme-secondary-bg-color)] text-[var(--tg-theme-text-color)] text-xs rounded px-2 outline-none border-none">
+                    <option value="name">A-Z</option><option value="date">Newest</option><option value="size">Largest</option>
+                </select>
+            </div>
+        </header>
+
+        <header id="select-header" class="hidden bg-[var(--tg-theme-button-color)] text-white px-4 py-4 shadow-md sticky top-0 z-20 flex items-center justify-between">
+            <div class="flex items-center gap-4"><i class="ph ph-x text-2xl cursor-pointer" onclick="cancelSelection()"></i><span class="font-bold text-lg"><span id="selected-count">0</span> Selected</span></div>
+            <i class="ph ph-check-square-offset text-2xl opacity-50"></i>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-4 pb-32" id="vault-content"></main>
+
+        <div id="selection-bar" class="hidden fixed bottom-0 left-0 right-0 bg-[var(--tg-theme-bg-color)] shadow-[0_-10px_20px_rgba(0,0,0,0.1)] pt-4 pb-8 px-6 flex items-center justify-between z-30 border-t border-[var(--tg-theme-hint-color)] border-opacity-20 transition-transform duration-300 translate-y-full">
+            <button id="btn-move" class="flex flex-col items-center text-[var(--tg-theme-text-color)] active:scale-90 transition-transform"><i class="ph ph-folder-simple-dashed text-[32px] mb-1"></i><span class="text-sm font-medium">Move</span></button>
+            <button id="btn-export" class="flex flex-col items-center text-[var(--tg-theme-button-color)] active:scale-90 transition-transform"><i class="ph ph-paper-plane-right text-[32px] mb-1"></i><span class="text-sm font-medium">To Chat</span></button>
+            <button id="btn-bulk-delete" class="flex flex-col items-center text-red-500 active:scale-90 transition-transform"><i class="ph ph-trash text-[32px] mb-1"></i><span class="text-sm font-medium">Delete</span></button>
+        </div>
+
+        <div id="move-modal" class="hidden fixed inset-0 z-[70] bg-black bg-opacity-60 flex items-end justify-center transition-opacity">
+            <div id="move-modal-content" class="bg-[var(--tg-theme-bg-color)] w-full rounded-t-2xl flex flex-col max-h-[80vh] shadow-2xl transition-transform duration-300 transform translate-y-full">
+                <div class="p-4 border-b border-[var(--tg-theme-hint-color)] border-opacity-20 flex justify-between items-center">
+                    <h3 class="font-bold text-lg text-[var(--tg-theme-text-color)]">Move to...</h3><i class="ph ph-x text-2xl text-[var(--tg-theme-hint-color)] cursor-pointer bg-[var(--tg-theme-secondary-bg-color)] rounded-full p-1" onclick="closeMoveModal()"></i>
+                </div>
+                <div class="flex-1 overflow-y-auto p-4" id="move-folder-list"></div>
+                <div class="p-4 border-t border-[var(--tg-theme-hint-color)] border-opacity-20 bg-[var(--tg-theme-secondary-bg-color)]">
+                    <button id="btn-confirm-move" class="w-full bg-[var(--tg-theme-button-color)] text-white font-bold py-3.5 text-lg rounded-xl shadow-lg active:scale-95 transition-transform">Move Here</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="store-modal" class="hidden fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
+            <div class="bg-[var(--tg-theme-bg-color)] w-full max-w-sm rounded-xl p-6 text-center shadow-xl">
+                <i class="ph ph-crown text-5xl text-yellow-500 mb-2"></i>
+                <h2 class="text-xl font-bold text-[var(--tg-theme-text-color)] mb-4">Upgrade Storage</h2>
+                <div class="flex flex-col gap-3 mb-6">
+                    <button class="w-full border border-[var(--tg-theme-button-color)] text-[var(--tg-theme-button-color)] rounded-lg py-2 font-bold">+5 GB (159 INR)</button>
+                    <button class="w-full bg-[var(--tg-theme-button-color)] text-white rounded-lg py-2 font-bold shadow">+10 GB (200 INR)</button>
+                </div>
+                <a href="https://t.me/yorichiiprime" target="_blank" class="block w-full bg-gray-800 text-white rounded-lg py-3 font-bold mb-3"><i class="ph ph-telegram-logo mr-1"></i> Contact Admin</a>
+                <button onclick="document.getElementById('store-modal').classList.add('hidden')" class="text-[var(--tg-theme-hint-color)] text-sm">Close</button>
+            </div>
+        </div>
+
+        <div id="image-viewer" class="hidden fixed inset-0 z-[60] bg-black flex flex-col">
+            <div class="p-4 flex justify-between text-white items-center bg-gradient-to-b from-black/70 to-transparent">
+                <i class="ph ph-arrow-left text-2xl cursor-pointer" onclick="closeViewer()"></i><span id="iv-name" class="text-sm truncate px-4"></span><i class="ph ph-paper-plane-right text-2xl cursor-pointer" id="iv-export"></i>
+            </div>
+            <div class="flex-1 flex items-center justify-center p-2"><img id="iv-img" class="max-w-full max-h-full object-contain"></div>
+        </div>
+        
+        <div id="audio-player" class="hidden fixed bottom-0 left-0 right-0 bg-[var(--tg-theme-bg-color)] p-4 shadow-[0_-10px_20px_rgba(0,0,0,0.2)] z-[60] border-t flex flex-col">
+            <div class="flex justify-between items-center mb-2"><span id="ap-name" class="text-sm font-bold text-[var(--tg-theme-text-color)] truncate pr-4"></span><i class="ph ph-x-circle text-xl cursor-pointer" onclick="closeAudio()"></i></div>
+            <audio id="ap-audio" controls class="w-full outline-none h-10"></audio>
+        </div>
+
+        <div id="context-menu" class="hidden fixed bg-[var(--tg-theme-bg-color)] shadow-xl rounded-xl py-2 z-50 border border-[var(--tg-theme-hint-color)] border-opacity-20 text-[var(--tg-theme-text-color)] text-sm min-w-[160px]">
+            <div id="ctx-rename" class="px-4 py-3 flex items-center gap-3 active:bg-[var(--tg-theme-secondary-bg-color)]"><i class="ph ph-pencil-simple text-lg"></i> Rename</div>
+            <div id="ctx-export" class="px-4 py-3 flex items-center gap-3 active:bg-[var(--tg-theme-secondary-bg-color)]"><i class="ph ph-paper-plane-right text-lg"></i> Send to Chat</div>
+            <div id="ctx-delete" class="px-4 py-3 flex items-center gap-3 text-red-500 active:bg-[var(--tg-theme-secondary-bg-color)]"><i class="ph ph-trash text-lg"></i> Delete</div>
+        </div>
+
+        <div id="fab-container" class="fixed bottom-6 right-6 flex flex-col gap-3 z-20 transition-transform duration-300">
+            <button id="btn-create-folder" class="w-14 h-14 bg-[var(--tg-theme-button-color)] text-white rounded-full shadow-lg flex items-center justify-center active:scale-90 transition-transform"><i class="ph ph-folder-plus text-3xl"></i></button>
+            <button id="btn-upload" class="w-14 h-14 bg-[var(--tg-theme-button-color)] text-white rounded-full shadow-lg flex items-center justify-center relative active:scale-90 transition-transform">
+                <i class="ph ph-upload-simple text-3xl"></i><input type="file" id="file-input" class="absolute inset-0 opacity-0 cursor-pointer" multiple>
+            </button>
+        </div>
+    </div>
+    <script src="/static/app.js"></script>
+</body>
+</html>
